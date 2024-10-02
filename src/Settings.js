@@ -30,7 +30,8 @@ class Settings extends React.Component {
     constructor(props) {
         super(props);
         let state = {
-            valid: false
+            valid: false,
+            params: { }
         };
         if (props.wf) {
             state = this.parseWF(props.wf); // Set the state from the parse of the WF object
@@ -51,19 +52,16 @@ class Settings extends React.Component {
 
     _validate() {
         let valid = true;
+
         if (this.state.stepName.length === 0) {
             this.setState({ _error_stepName: true, _error_message_stepName: 'Can not be empty' });
             valid = false;
         } else {
             this.setState({ _error_stepName: false, _error_message_stepName: null });
         }
-        if (this.state.type === "call") {
-            if (this.state.functionName.length === 0) {
-                this.setState({ _error_functionName: true, _error_message_functionName: 'Can not be empty' });
-                valid = false;
-            } else {
-                this.setState({ _error_functionName: false, _error_message_functionName: null });
-            }
+
+        if (this.state.type === "100step") {
+            // this.setState({ _error_digit: false, _error_message_digit: null });
         } else if (this.state.type === "return") {
             if (this.state["return"].length === 0) {
                 this.setState({ _error_return: true, _error_message_return: 'Can not be empty' });
@@ -85,119 +83,40 @@ class Settings extends React.Component {
                 });
             });
         }
+
         this.setState({ valid });
+        
         if (this.props.onValidate) {
             this.props.onValidate(valid);
         }
     }
 
-    /**
-     * Parse a WF object and return the core information.
-     * @param {*} wf 
-     * @returns 
-     * 
-     * Call
-     * {
-  <stepName>: {
-    "call": <functionName>,
-    "args": {
-      <arg1>: <value1>,
-      ...
-    },
-    "result": <varName>
-  }
-}
-     */
     parseWF(wf) {
         let stepName = WFUtils.getStepName(wf);
         let step = wf[stepName];
         const stepType = WFUtils.getStepType(wf);
-        /**
-         * {
-                <stepName>: {
-                    "call": <functionName>,
-                    "args": {
-                    <arg1>: <value1>,
-                    ...
-                    },
-                    "result": <varName>
-                }
-            }
-         */
-        if (stepType === "call") {
-            // It is a call
-            let functionName = step.call;
-            let result = step.result ? step.result : "";
+        
+        // It is a call
+        let params = step[stepType];
+        let result = step.result ? step.result : "";
 
-            let items = [];
-            if (step.args) {
-                Object.getOwnPropertyNames(step.args).forEach((propertyName) => {
-                    items.push({
-                        name: propertyName,
-                        value: step.args[propertyName]
-                    })
-                });
-            }
-            return {
-                type: "call",
-                stepName,
-                functionName,
-                result,
-                items
-            };
-        }
-
-        /*
-        {
-            <stepName>: {
-                "assign": [
-                    {
-                        <varName>: <varValue>
-                    },
-                    ...
-                ]
-            }
-        }
-        */
-        if (stepType === "assign") {
-            let items = [];
-            if (step.assign) {
-                step.assign.forEach((item) => {
-                    Object.getOwnPropertyNames(item).forEach((propertyName) => {
-                        items.push({
-                            name: propertyName,
-                            value: item[propertyName]
-                        })
-                    });
+        let items = [];
+        if (step.args) {
+            Object.getOwnPropertyNames(step.args).forEach((propertyName) => {
+                items.push({
+                    name: propertyName,
+                    value: step.args[propertyName]
                 })
-            }
-            return {
-                type: "assign",
-                stepName,
-                items: items
-            }
+            });
         }
+        return {
+            type: stepType,
+            stepName,
+            params,
+            result,
+            items
+        };
 
-        if (stepType === "switch") {
-            let items = [];
-            step.switch.forEach((item) => {
-                items.push({ value: item.condition });
-            })
-            return {
-                type: "switch",
-                stepName,
-                items: items
-            }
-        }
-
-        if (stepType === "return") {
-            let returnValue = step["return"] ? step["return"] : "";
-            return {
-                type: "return",
-                stepName,
-                "return": returnValue
-            }
-        }
         return {};
     }
 
@@ -209,68 +128,21 @@ class Settings extends React.Component {
         let step = {};
         let wf = {}
         wf[this.state.stepName] = step;
-        //
-        // Call
-        //
-        if (this.state.type === "call") {
-            step["call"] = this.state.functionName;
-            if (this.state.result && this.state.result.length > 0) {
-                step["result"] = this.state.result;
-            }
-            if (this.state.items.length > 0) {
-                let args = {};
-                step["args"] = args;
-                this.state.items.forEach((item) => {
-                    args[item.name] = item.value;
-                });
-            }
-            return wf;
+        
+        step[this.state.type] = this.state.params;
+
+        if (this.state.result && this.state.result.length > 0) {
+            step["result"] = this.state.result;
         }
 
-        //
-        // Assign
-        //
-        if (this.state.type === "assign") {
-            step["assign"] = [];
+        if (this.state.items.length > 0) {
+            let args = {};
+            step["args"] = args;
             this.state.items.forEach((item) => {
-                step["assign"].push({ [item.name]: item.value })
+                args[item.name] = item.value;
             });
-            return wf;
         }
 
-        //
-        // Switch
-        //
-        /*
-        {
-  <stepName>: {
-    "switch": [
-      {
-        "condition": "${EXPRESSION_A}",
-        "next": "STEP_NAME_B"
-      },
-      {
-        "condition": "${EXPRESSION_B}",
-        "next": "STEP_NAME_C"
-      }
-      ...
-    ],
-    "next": "STEP_NAME_D"
-  }
-}
-        */
-        if (this.state.type === "switch") {
-            step["switch"] = [];
-            this.state.items.forEach((item) => {
-                step["switch"].push({ condition: item.value });
-            });
-            return wf;
-        }
-
-        if (this.state.type === "return") {
-            step["return"] = this.state["return"];
-            return wf;
-        }
         return wf;
     }
 
@@ -301,8 +173,11 @@ class Settings extends React.Component {
             items: []
         }
 
-        if (newType === "call") {
-            newValues.functionName = "";
+        if (newType === "100step") {
+            newValues.params = {digit: "", seconds: ""};
+        }
+        if (newType === "102step") {
+            newValues.params = {onSuccess: "", onFailure: ""};
         }
         if (newType === "return") {
             newValues["return"] = "";
@@ -346,24 +221,69 @@ class Settings extends React.Component {
                                     this._typeChange(e.target.value)
                                 }
                             }>
-                            <MenuItem value={"call"}><Typography component="span" style={{ fontFamily: "fontawesome" }}>{WFShape_CallIcon}</Typography>&nbsp;Call</MenuItem>
+                            <MenuItem value={"100step"}><Typography component="span" style={{ fontFamily: "fontawesome" }}>{WFShape_CallIcon}</Typography>&nbsp;100-MakeCallWithoutCPA</MenuItem>
+                            <MenuItem value={"102step"}><Typography component="span" style={{ fontFamily: "fontawesome" }}>{WFShape_AssignIcon}</Typography>&nbsp;102-Ringless Dialing</MenuItem>
                         </TextField>
                     </Grid>
 
                 </Grid>
 
-                {this.state.type === "call" ?
+                {this.state.type === "100step" ?
                     <Grid container spacing={2}>
                         <Grid item xs={12}>
-                            <TextField value={this.state.functionName} label="Function Name" fullWidth
+                            <TextField value={this.state.params.digit} label="Max Digit" fullWidth
                                 inputProps={{
                                     spellCheck: 'false'
                                 }}
-                                error={this.state._error_functionName} helperText={this.state._error_message_functionName}
+                                error={this.state._error_digit} helperText={this.state._error_message_digit}
                                 variant="outlined"
                                 required
                                 onChange={(e) => {
-                                    this.setState({ functionName: e.target.value }, this._settingsChanged);
+                                    this.setState({params: { ...this.state.params, digit: e.target.value }}, this._settingsChanged);
+                                }}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField value={this.state.params.seconds} label="Max Seconds" fullWidth
+                                inputProps={{
+                                    spellCheck: 'false'
+                                }}
+                                error={this.state._error_seconds} helperText={this.state._error_message_seconds}
+                                variant="outlined"
+                                required
+                                onChange={(e) => {
+                                    this.setState({params: { ...this.state.params, seconds: e.target.value }}, this._settingsChanged);
+                                }}
+                            />
+                        </Grid>
+                    </Grid>
+                    : ""
+                }
+                {this.state.type === "102step" ?
+                    <Grid container spacing={2}>
+                        <Grid item xs={12}>
+                            <TextField value={this.state.params.onSuccess} label="Next Step On Success" fullWidth
+                                inputProps={{
+                                    spellCheck: 'false'
+                                }}
+                                error={this.state._error_onSuccess} helperText={this.state._error_message_onSuccess}
+                                variant="outlined"
+                                required
+                                onChange={(e) => {
+                                    this.setState({params: { ...this.state.params, onSuccess: e.target.value }}, this._settingsChanged);
+                                }}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField value={this.state.params.onFailure} label="Next Step On Failure" fullWidth
+                                inputProps={{
+                                    spellCheck: 'false'
+                                }}
+                                error={this.state._error_onFailure} helperText={this.state._error_message_onFailure}
+                                variant="outlined"
+                                required
+                                onChange={(e) => {
+                                    this.setState({params: { ...this.state.params, onFailure: e.target.value }}, this._settingsChanged);
                                 }}
                             />
                         </Grid>

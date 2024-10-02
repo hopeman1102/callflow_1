@@ -39,10 +39,10 @@ const WFShape_Height = 70;
 const WFShape_RemoveDistance = -30;
 
 const WFShapeMap = {
-    "call": {
+    "100step": {
         "icon": WFShape_CallIcon
     },
-    "assign": {
+    "102step": {
         "icon": WFShape_AssignIcon
     },
     "switch": {
@@ -58,7 +58,7 @@ const portsDef = {
         'in': {
             position: "left",
             attrs: {
-                circle: { fill: WFShape_InColor, stroke: 'black', 'stroke-width': 1, r: 8, magnet: true }
+                circle: { fill: WFShape_InColor, stroke: 'black', 'stroke-width': 1, r: 8, magnet: "passive" }
             }
         },
         'out': {
@@ -83,7 +83,6 @@ const portsDef = {
                 }
             },
         }
-
     },
     items: []
 };
@@ -172,17 +171,6 @@ class MyJointJS extends React.Component {
             //defaultLink: new joint.shapes.standard.Link(),
             defaultLink: function (cellView, magnet) {
                 const link = new joint.shapes.standard.Link();
-                /*
-                var targetArrowheadTool = new joint.linkTools.TargetArrowhead();
-                var toolsView = new joint.dia.ToolsView({
-                    tools: [
-                        targetArrowheadTool
-                    ]
-                });
-                //var linkView = link.findView(paper);
-                
-                cellView.addTools(toolsView);
-                */
                 return link;
             },
             // Validate link connections.  When a link is being formed, we can examine the links and shut it down
@@ -203,9 +191,9 @@ class MyJointJS extends React.Component {
                 */
                 const source = linkView.model.source()
                 // Cound the number of outgoing links.  Hint ... it will be at least 1 as we have the CURRENT link
-                if (JointJSUtils.countOutgoingLinks(this.model, source.id, source.port) > 1) {
-                    return false;
-                }
+                // if (JointJSUtils.countOutgoingLinks(this.model, source.id, source.port) > 1) {
+                //     return false;
+                // }
                 return true;
             },
             interactive: function (cellView) {
@@ -284,7 +272,11 @@ class MyJointJS extends React.Component {
     } // _setDirection
 
 
-    _add() {
+    _add(flag) {
+        this._addStep(flag);
+    } // _add
+
+    _addStep(flag) {
         let stepName = `Step${this.stepCount}`
         this.stepCount++
 
@@ -307,7 +299,7 @@ class MyJointJS extends React.Component {
         rect.addTo(this.graph);
         rect.set('wf', {
             [stepName]: {
-                'call': ''
+                '100step': {}
             }
         });
 
@@ -333,8 +325,17 @@ class MyJointJS extends React.Component {
                 wf: clone(rect.get('wf'))
             });
         });
+
+        if(flag){
+            this.setState({
+                settingsShowDialog: true,
+                menuElement: rect,
+                wf: clone(rect.get('wf'))
+            });
+        }
+
         return rect;
-    } // _add
+    }
 
     _menuClose() {
         this.setState({ contextShowMenu: false });
@@ -346,7 +347,7 @@ class MyJointJS extends React.Component {
     } // _deleteElement
 
     _duplicateElement() {
-        const newElement = this._add();
+        const newElement = this._add(false);
         //newElement.set('wf', clone(this.state.menuElement.get('wf')))
         const newWf = clone(this.state.menuElement.get('wf'));
         WFUtils.setStepName(newWf, "Copy_" + WFUtils.getStepName(newWf))
@@ -461,7 +462,7 @@ class MyJointJS extends React.Component {
         this._deleteAll();
         // We create an element for each step in the YAML.
         yamlObj.forEach((wp) => {
-            const element = this._add();
+            const element = this._add(false);
             this._setElementFromWF(element, wp);
         });
         // Now all the elements are in place, we can start wiring them up!
@@ -625,23 +626,7 @@ class MyJointJS extends React.Component {
 
             {/* Button at the bottom */}
             <Grid container justifyContent="flex-end">
-
-
-
-                {
-                    /*
-                <Button color="primary" variant="contained" onClick={() => {
-                    this.setState({ openLoad: true });
-                }}>Load</Button>
-                &nbsp;
-                <Button color="primary" variant="contained" onClick={() => {
-                    this.setState({ openSave: true, saveText: JSON.stringify(this.graph.toJSON(), null, 2) });
-                    console.log(JSON.stringify(this.graph.toJSON(), null, 2));
-                }}>Save</Button>
-                &nbsp;
-                */
-                }
-                <Button color="primary" variant="contained" onClick={() => { this._add() }}>Add Step</Button>
+                <Button color="primary" variant="contained" onClick={() => { this._add(true) }}>Add Step</Button>
             </Grid>
 
 

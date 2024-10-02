@@ -36,8 +36,11 @@ function getStepType(wf) {
         throw new Error("No wf parameter")
     }
     const stepContent = getStepContent(wf);
-    if (stepContent.hasOwnProperty("call")) {
-        return "call";
+    if (stepContent.hasOwnProperty("100step")) {
+        return "100step";
+    }
+    if (stepContent.hasOwnProperty("102step")) {
+        return "102step";
     }
     if (stepContent.hasOwnProperty("assign")) {
         return "assign";
