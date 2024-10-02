@@ -306,13 +306,24 @@ class MyJointJS extends React.Component {
         /**
          * Add a handler for the context menu.
          */
-        this.paper.findViewByModel(rect).on('element:contextmenu', (e) => {
+       this.paper.findViewByModel(rect).on('element:contextmenu', (e) => {
+            console.log('=========> ', e)
+            if (e.preventDefault) {
+                e.preventDefault();
+            } else {
+                e.returnValue = false; // For older browsers
+            }
+
             this.setState({
                 contextShowMenu: true,
                 mouse: { x: e.clientX, y: e.clientY },
                 menuElement: rect,
                 wf: clone(rect.get('wf'))
             });
+        });
+
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
         });
 
         /*
